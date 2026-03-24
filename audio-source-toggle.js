@@ -5,6 +5,7 @@
   var ARCHIVE_BASE = 'https://archive.org/download/ashtyk-website-archive/uploads/files/';
   var CACHE_KEY = 'audioSource';
   var CACHE_TIME_KEY = 'audioSourceChecked';
+  var MANUAL_KEY = 'audioSourceManual';
   var CACHE_TTL = 3600000; // re-check every 1 hour
 
   function getBase(src) {
@@ -24,7 +25,6 @@
   }
 
   function applySource(src) {
-    // HTML has archive.org links by default — swap to B2 if needed
     if (src === 'b2') {
       swapLinks(ARCHIVE_BASE, B2_BASE);
     }
@@ -46,15 +46,20 @@
     var btn = document.createElement('button');
     btn.id = 'audio-source-btn';
     btn.style.cssText = 'color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:13px;margin-right:10px;font-family:sans-serif;';
+    btn.dataset.src = src;
     updateButton(btn, src, auto);
 
     btn.onclick = function() {
-      var from = btn.dataset.src || src;
+      var from = btn.dataset.src;
       var next = from === 'b2' ? 'archive' : 'b2';
       swapLinks(getBase(from), getBase(next));
       btn.dataset.src = next;
       updateButton(btn, next, false);
-      try { localStorage.setItem(CACHE_KEY, next); localStorage.removeItem(CACHE_TIME_KEY); } catch(e) {}
+      // Save manual choice — this overrides auto-detect until cleared
+      try {
+        localStorage.setItem(MANUAL_KEY, next);
+        localStorage.setItem(CACHE_KEY, next);
+      } catch(e) {}
     };
 
     var nav = document.querySelector('.art-hmenu');
@@ -67,7 +72,16 @@
   }
 
   function checkB2(callback) {
-    // Check cache first
+    // If user manually chose, respect that
+    try {
+      var manual = localStorage.getItem(MANUAL_KEY);
+      if (manual) {
+        callback(manual, false);
+        return;
+      }
+    } catch(e) {}
+
+    // Check auto-detect cache
     try {
       var cached = localStorage.getItem(CACHE_KEY);
       var checkedAt = parseInt(localStorage.getItem(CACHE_TIME_KEY) || '0');
@@ -77,24 +91,36 @@
       }
     } catch(e) {}
 
-    // Ping B2 health file with a 3-second timeout
-    var xhr = new XMLHttpRequest();
-    xhr.timeout = 3000;
-    xhr.onload = function() {
-      if (xhr.status === 200) {
-        try { localStorage.setItem(CACHE_KEY, 'b2'); localStorage.setItem(CACHE_TIME_KEY, '' + Date.now()); } catch(e) {}
-        callback('b2', true);
-      } else {
-        try { localStorage.setItem(CACHE_KEY, 'archive'); localStorage.setItem(CACHE_TIME_KEY, '' + Date.now()); } catch(e) {}
-        callback('archive', true);
-      }
-    };
-    xhr.onerror = xhr.ontimeout = function() {
+    // Ping B2 health file — use <img> trick to avoid CORS issues
+    var img = new Image();
+    var done = false;
+    var timer = setTimeout(function() {
+      if (done) return;
+      done = true;
+      // Timeout — B2 is down or blocked, use archive
       try { localStorage.setItem(CACHE_KEY, 'archive'); localStorage.setItem(CACHE_TIME_KEY, '' + Date.now()); } catch(e) {}
       callback('archive', true);
+    }, 3000);
+
+    img.onload = function() {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      try { localStorage.setItem(CACHE_KEY, 'b2'); localStorage.setItem(CACHE_TIME_KEY, '' + Date.now()); } catch(e) {}
+      callback('b2', true);
     };
-    xhr.open('HEAD', B2_HEALTH + '?t=' + Date.now());
-    xhr.send();
+
+    img.onerror = function() {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      // onerror fires for non-image responses too — but it means the server responded
+      // So B2 is up, the file just isn't an image. That's fine.
+      try { localStorage.setItem(CACHE_KEY, 'b2'); localStorage.setItem(CACHE_TIME_KEY, '' + Date.now()); } catch(e) {}
+      callback('b2', true);
+    };
+
+    img.src = B2_HEALTH + '?t=' + Date.now();
   }
 
   function init() {
