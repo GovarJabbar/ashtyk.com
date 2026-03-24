@@ -67,7 +67,7 @@
       var li = document.createElement('li');
       li.style.cssText = 'display:inline-block;padding:6px 4px;';
       li.appendChild(btn);
-      nav.insertBefore(li, nav.firstChild);
+      nav.appendChild(li);
     }
   }
 
