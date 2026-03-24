@@ -2,7 +2,7 @@
 (function() {
   var B2_BASE = 'https://f003.backblazeb2.com/file/ashtyk/files/';
   var B2_HEALTH = 'https://f003.backblazeb2.com/file/ashtyk/health.txt';
-  var ARCHIVE_BASE = 'https://archive.org/download/ashtyk-website-archive/uploads/files/';
+  var ARCHIVE_BASE = 'https://archive.org/download/ashtyk-website-archive/files/';
   var CACHE_KEY = 'audioSource';
   var CACHE_TIME_KEY = 'audioSourceChecked';
   var MANUAL_KEY = 'audioSourceManual';
