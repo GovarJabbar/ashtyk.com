@@ -1,71 +1,62 @@
-// Audio source toggle: B2 (default) vs Archive.org
+// Audio source toggle: auto-detects B2 availability, falls back to Archive.org
 (function() {
   var B2_BASE = 'https://f003.backblazeb2.com/file/ashtyk/files/';
+  var B2_HEALTH = 'https://f003.backblazeb2.com/file/ashtyk/health.txt';
   var ARCHIVE_BASE = 'https://archive.org/download/ashtyk-website-archive/uploads/files/';
-  var STORAGE_KEY = 'audioSource';
-
-  function getSource() {
-    try { return localStorage.getItem(STORAGE_KEY) || 'b2'; } catch(e) { return 'b2'; }
-  }
-
-  function setSource(src) {
-    try { localStorage.setItem(STORAGE_KEY, src); } catch(e) {}
-  }
+  var CACHE_KEY = 'audioSource';
+  var CACHE_TIME_KEY = 'audioSourceChecked';
+  var CACHE_TTL = 3600000; // re-check every 1 hour
 
   function getBase(src) {
     return src === 'b2' ? B2_BASE : ARCHIVE_BASE;
   }
 
-  function getOtherBase(src) {
-    return src === 'b2' ? ARCHIVE_BASE : B2_BASE;
-  }
-
   function swapLinks(from, to) {
-    // Swap href attributes
+    if (from === to) return;
     var links = document.querySelectorAll('a[href*="' + from + '"]');
     for (var i = 0; i < links.length; i++) {
       links[i].href = links[i].href.replace(from, to);
     }
-    // Swap clickplay IDs (audio player)
     var players = document.querySelectorAll('[id*="' + from + '"]');
     for (var j = 0; j < players.length; j++) {
       players[j].id = players[j].id.replace(from, to);
     }
   }
 
-  function updateButton(btn, src) {
+  function applySource(src) {
+    // HTML has archive.org links by default — swap to B2 if needed
     if (src === 'b2') {
-      btn.innerHTML = '&#9729; B2';
-      btn.title = 'Audio from Backblaze B2 (click to switch to Archive.org)';
-    } else {
-      btn.innerHTML = '&#127968; Archive';
-      btn.title = 'Audio from Archive.org (click to switch to Backblaze B2)';
+      swapLinks(ARCHIVE_BASE, B2_BASE);
     }
   }
 
-  function init() {
-    var source = getSource();
-
-    // On page load, links point to archive.org in HTML — swap to B2 if needed
-    if (source === 'b2') {
-      swapLinks(ARCHIVE_BASE, B2_BASE);
+  function updateButton(btn, src, auto) {
+    if (src === 'b2') {
+      btn.innerHTML = '&#9729; B2' + (auto ? ' &#10003;' : '');
+      btn.style.background = '#2a7b3f';
+      btn.title = 'Audio: Backblaze B2 (click to switch)';
+    } else {
+      btn.innerHTML = '&#127968; Archive' + (auto ? ' &#10003;' : '');
+      btn.style.background = '#c44';
+      btn.title = 'Audio: Archive.org (click to switch)';
     }
+  }
 
-    // Create toggle button
+  function addButton(src, auto) {
     var btn = document.createElement('button');
     btn.id = 'audio-source-btn';
-    btn.style.cssText = 'background:#2a7b3f;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:13px;margin-right:10px;font-family:sans-serif;';
-    updateButton(btn, source);
+    btn.style.cssText = 'color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:13px;margin-right:10px;font-family:sans-serif;';
+    updateButton(btn, src, auto);
 
     btn.onclick = function() {
-      var current = getSource();
-      var next = current === 'b2' ? 'archive' : 'b2';
-      swapLinks(getBase(current), getBase(next));
-      setSource(next);
-      updateButton(btn, next);
+      var from = btn.dataset.src || src;
+      var next = from === 'b2' ? 'archive' : 'b2';
+      swapLinks(getBase(from), getBase(next));
+      btn.dataset.src = next;
+      updateButton(btn, next, false);
+      try { localStorage.setItem(CACHE_KEY, next); localStorage.removeItem(CACHE_TIME_KEY); } catch(e) {}
     };
 
-    // Insert into nav bar
     var nav = document.querySelector('.art-hmenu');
     if (nav) {
       var li = document.createElement('li');
@@ -73,6 +64,44 @@
       li.appendChild(btn);
       nav.insertBefore(li, nav.firstChild);
     }
+  }
+
+  function checkB2(callback) {
+    // Check cache first
+    try {
+      var cached = localStorage.getItem(CACHE_KEY);
+      var checkedAt = parseInt(localStorage.getItem(CACHE_TIME_KEY) || '0');
+      if (cached && (Date.now() - checkedAt) < CACHE_TTL) {
+        callback(cached, true);
+        return;
+      }
+    } catch(e) {}
+
+    // Ping B2 health file with a 3-second timeout
+    var xhr = new XMLHttpRequest();
+    xhr.timeout = 3000;
+    xhr.onload = function() {
+      if (xhr.status === 200) {
+        try { localStorage.setItem(CACHE_KEY, 'b2'); localStorage.setItem(CACHE_TIME_KEY, '' + Date.now()); } catch(e) {}
+        callback('b2', true);
+      } else {
+        try { localStorage.setItem(CACHE_KEY, 'archive'); localStorage.setItem(CACHE_TIME_KEY, '' + Date.now()); } catch(e) {}
+        callback('archive', true);
+      }
+    };
+    xhr.onerror = xhr.ontimeout = function() {
+      try { localStorage.setItem(CACHE_KEY, 'archive'); localStorage.setItem(CACHE_TIME_KEY, '' + Date.now()); } catch(e) {}
+      callback('archive', true);
+    };
+    xhr.open('HEAD', B2_HEALTH + '?t=' + Date.now());
+    xhr.send();
+  }
+
+  function init() {
+    checkB2(function(src, auto) {
+      applySource(src);
+      addButton(src, auto);
+    });
   }
 
   if (document.readyState === 'loading') {
