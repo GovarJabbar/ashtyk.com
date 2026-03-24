@@ -1,0 +1,5 @@
+# HTTrack Website Copier Cookie File
+# This file format is compatible with Netscape cookies
+www.ashtyk.com	TRUE	/	FALSE	1999999999	PHPSESSID	27gdd16deo2mbksql4slq3voo0
+ashtyk.com	TRUE	/	FALSE	1999999999	PHPSESSID	11irbn2mak5pqekr2ug5p84mr6
+
