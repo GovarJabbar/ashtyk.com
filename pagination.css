@@ -1,0 +1,76 @@
+.paging {
+	padding: 5px 0px 0px 0px;
+	text-align: left;
+	font-size: 13px;
+}
+
+.paging.display {
+  text-align: right;
+}
+
+.paging a {
+  padding: 2px 8px 2px 8px;
+  font-weight: normal;
+  color: #000;
+  text-decoration: none;
+  border: 1px solid silver;
+  background-color: white;
+}
+
+ .paging span {
+  padding: 2px 8px 2px 8px;
+  font-weight: normal;
+}
+
+.paging span {
+  font-weight: bold;
+  color: #000;
+  font-size: 13px;
+}
+
+ .paging a:visited {
+  color: #000;
+  text-decoration: none;
+  border: 1px solid silver;
+  background-color: white;
+}
+
+.paging a:hover {
+  text-decoration: none;
+  background-color: #6c6c6c;
+  color: #fff;
+  border-color: #000;
+}
+
+.paging span.prn {
+  font-size: 13px;
+  font-weight: normal;
+  color: #aaa;
+}
+
+.paging a.prn {
+  border: 2px solid #dddddd;
+}
+
+ .paging a.prn:visited {
+  border: 2px solid #dddddd;
+}
+
+.paging a.prn:hover {
+  border-color: #000;
+}
+
+.paging div#total_count {
+  color: #aaa;
+  font-size: 12px;
+  font-weight: normal;
+  padding-top: 8px;
+  padding-right: 18px;
+  display: none;
+}
+
+.paging div#total_display {
+  color: #aaa;
+  font-size: 12px;
+  padding-top: 10px;
+}
